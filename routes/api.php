@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
+Route::middleware('jwt.auth')->get('/user', function (Request $request) {
     return $request->user();
 });
 
@@ -24,7 +24,7 @@ Route::post('register','AuthenticateController@singup');
 Route::post('authenticate', 'AuthenticateController@authenticate');
 
 // Ruta para obtener el usuario a partir de un token autentificado
-Route::get('authenticate/user', 'AuthenticateController@getAuthenticatedUser');
+Route::middleware('jwt.auth')->get('authenticate/user', 'AuthenticateController@getAuthenticatedUser');
 
 // Ruta para obtener todos los usuarios ¿para que sive?
-Route::get('authenticate', 'AuthenticateController@index');
+Route::middleware('jwt.auth')->get('authenticate', 'AuthenticateController@index');
