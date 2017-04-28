@@ -12,11 +12,11 @@ use Illuminate\Http\Request;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
-
+/*
 Route::middleware('jwt.auth')->get('/user', function (Request $request) {
     return $request->user();
 });
-
+*/
 // Ruta registrarse en la aplicación
 Route::post('register','AuthenticateController@singup');
 
@@ -26,5 +26,5 @@ Route::post('authenticate', 'AuthenticateController@authenticate');
 // Ruta para obtener el usuario a partir de un token autentificado
 Route::middleware('jwt.auth')->get('authenticate/user', 'AuthenticateController@getAuthenticatedUser');
 
-// Ruta para obtener todos los usuarios ¿para que sive?
-Route::middleware('jwt.auth')->get('authenticate', 'AuthenticateController@index');
+// Rutas para el recurso de usuario
+Route::middleware('jwt.auth')->resource('user', 'UserController', ['except' => [ 'create', 'edit' ]]);
