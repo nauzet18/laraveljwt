@@ -23,8 +23,12 @@ Route::post('register','AuthenticateController@singup');
 // Ruta para loguearse
 Route::post('authenticate', 'AuthenticateController@authenticate');
 
-// Ruta para obtener el usuario a partir de un token autentificado
-Route::middleware('jwt.auth')->get('authenticate/user', 'AuthenticateController@getAuthenticatedUser');
+//Grupo para que todas las rutas en él, se le aplique el middelware de autentificación jwt-auth
+Route::group(['middleware' => 'jwt.auth'], function ()
+{
+  // Ruta para obtener el usuario a partir de un token autentificado
+  Route::get('authenticate/user', 'AuthenticateController@getAuthenticatedUser');
 
-// Rutas para el recurso de usuario
-Route::middleware('jwt.auth')->resource('user', 'UserController', ['except' => [ 'create', 'edit' ]]);
+  // Rutas para el recurso de usuario
+  Route::resource('user', 'UserController', ['except' => [ 'create', 'edit' ]]);
+});
