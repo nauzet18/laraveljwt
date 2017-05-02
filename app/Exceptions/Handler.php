@@ -44,6 +44,13 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
+        //Añadimos un conrol de excepciones especifico para cuando no existe un objeto en el ORM.
+        if ($exception instanceof ModelNotFoundException)
+        {
+            $exception = new NotFoundHttpException($exception->getMessage(), $exception);
+            return \Response::json(['error' => 'Model not found'], 404);
+        }
+
         return parent::render($request, $exception);
     }
 

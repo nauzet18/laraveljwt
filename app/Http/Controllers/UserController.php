@@ -26,10 +26,35 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        $inputs = $request->all();
-        $inputs['password'] = bcrypt($request->password);
-        User::create( $inputs );
-        return ['created' => true];
+        // Creamos las reglas de validación
+        $rules = [
+            'name'  => 'required|unique:users,name',
+            'email' => 'required|unique:users,email',
+            'password'  => 'required'
+            ];
+
+        try {
+            // Ejecutamos el validador y en caso de que falle devolvemos la respuesta
+            $validator = \Validator::make($request->all(), $rules);
+            if ($validator->fails()) {
+                return [
+                    'created' => false,
+                    'errors'  => $validator->errors()->all()
+                ];
+            }
+ 
+            $inputs = $request->all();
+            $inputs['password'] = bcrypt($request->password);
+
+            User::create( $inputs );
+
+            return ['created' => true];
+        } catch (Exception $e)
+        {
+            \Log::info('Error creating user: '.$e);
+            return \Response::json(['created' => false], 500);
+        }
+
     }
 
     /**
@@ -40,7 +65,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        return User::find($id);
+        return User::findOrFail($id);
     }
 
     /**
@@ -52,9 +77,31 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $user = User::find($id);
-        $user->update($request->all());
-        return ['updated' => true];
+        // Creamos las reglas de validación
+        $rules = [
+            'name'  => 'required|unique:users,name,'.$id,
+            ];
+
+        try {
+            // Ejecutamos el validador y en caso de que falle devolvemos la respuesta
+            $validator = \Validator::make($request->all(), $rules);
+            if ($validator->fails()) {
+                return [
+                    'updated' => false,
+                    'errors'  => $validator->errors()->all()
+                ];
+            }
+ 
+            $user = User::findOrFail($id);
+            $user->update($request->all());
+            return ['updated' => true];
+
+        } catch (Exception $e)
+        {
+            \Log::info('Error updating user: '.$e);
+            return \Response::json(['updated' => false], 500);
+        }
+
     }
 
     /**
