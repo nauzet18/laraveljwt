@@ -11,70 +11,130 @@ class UserTest extends TestCase
 {
 //    use DatabaseMigrations;
     use DatabaseTransactions;
-//    use WithoutMiddleware;
+    //use WithoutMiddleware;
 
-    public function testUserCreate()
-    {
-        $data = $this->getData();
+    //Función para proveer de un usuario y el token de autentificación a cada test
+    public function getLoginTokenAndNewUser() {
 
+      //Creo el usuario en la BD
+      $user = factory(\App\User::class)->create();
 
-        // Registramos un usuario
-        $this->post('/api/register', $data)
-             ->assertExactJson(['msg' => 'Success']);
+      //me logueo para obtener el token
+      $data = array_merge( $user->toArray(), [ 'password' => 'secret', ] );
 
-        // Nos logueamos con dicho usuario
-        $response = $this->post('/api/authenticate', $data)
-        								 ->assertJsonStructure([ 'token' ] )
-                 				 ->assertStatus(200);
+      $response = $this->post('/api/authenticate', $data )
+                       ->assertStatus(200)
+                       ->assertJsonStructure([ 'token' ] )
+                       ;
 
-        //Obtengo el token de logeo y lo añado como dato
-        $tokenValue = $response->original['token'];
+      //Obtengo el token de logeo y lo añado como dato
+      $tokenValue = $response->original['token'];
 
-        // Creamos un nuevo usuario y verificamos la respuesta
-        $data = $this->getData(['name' => 'jane', 'email'     => 'jane@doe.com']);
-        $this->post("/api/user?token=$tokenValue", $data)
-             ->assertExactJson(['created' => true])
-             ->assertStatus(200);
-
-        // Obtengo todos los usuarios
-        //$response = $this->json('GET', "/api/user?token=$tokenValue")
-        $response = $this->json('GET', "/api/user")
-        								 ->assertJsonStructure(
-				                                        [
-				                                          [
-				                                            "id",
-				                                            "name",
-				                                            "email",
-				                                            "created_at",
-				                                            "updated_at",
-				                                          ]
-				                                        ]
-				                                       )
-				                 ->assertStatus(200);
-
-        //Saco el ID del primer usuario creado.
-        $userId = $response->original[0]['id'];
-
- 
-        $data = $this->getData(['name' => 'joe2']);
-        // Actualizamos el primer usuario  creado
-        $this->put('/api/user/'.$userId, $data)
-             ->assertExactJson(['updated' => true])
-             ->assertStatus(200);
- 
- 
-        // Obtenemos los datos de dicho usuario modificado
-        // y verificamos que el nombre sea el correcto
-        $this->get('/api/user/'.$userId)
-        		 ->assertJson(['name' => 'joe2'])
-        		 ->assertStatus(200);
- 
-        // Eliminamos al usuario
-        $this->delete('/api/user/'.$userId)
-        		 ->assertExactJson(['deleted' => true])
-        		 ->assertStatus(200);
+      return array ( $tokenValue, $user );
     }
- 
+
+    public function testUserRegister()
+    {
+      //Construyo un objeto User
+      $user = factory(\App\User::class)->make();
+
+      // Registramos el usuario
+      $this->post('/api/register', $user->toArray())
+           ->assertStatus(200)
+           ->assertExactJson(['msg' => 'Success'])
+           ;
+
+      //Comprueba que el usuario registrado esta en la BD
+      $this->assertDatabaseHas('users', ['name' => $user->name, 'email' => $user->email ] );
+    }
+
+    public function testUserIndex()
+    {
+      //get params
+      list( $tokenValue, $user ) = $this->getLoginTokenAndNewUser();
+
+      // Obtengo todos los usuarios
+      $response = $this->json('GET', "/api/user?token=$tokenValue")
+                       ->assertStatus(200)
+                       ->assertJsonStructure(
+                                              [
+                                                [
+                                                  "id",
+                                                  "name",
+                                                  "email",
+                                                  "created_at",
+                                                  "updated_at",
+                                                ]
+                                              ]
+                                             )
+                       ;
+    }
+
+    public function testUserStore()
+    {
+      //get params
+      list($tokenValue, $user) = $this->getLoginTokenAndNewUser();
+
+      // Creamos un nuevo usuario y verificamos la respuesta
+      $data = $this->getData(['name' => 'jane', 'email'     => 'jane@doe.com']);
+      $this->post("/api/user?token=$tokenValue", $data)
+           ->assertStatus(200)
+           ->assertExactJson(['created' => true])
+           ;
+
+      //Compruebo en la BD que no existe el usuario
+      $this->assertDatabaseHas('users', ['name' => 'jane', 'email'     => 'jane@doe.com'] );
+    }
+
+    public function testUserShow()
+    {
+      //get params
+      list($tokenValue, $user) = $this->getLoginTokenAndNewUser();
+
+      //Comprobamos que al obtener el usuario su información sea correcta
+      $this->get( '/api/user/'.$user->id."?token=$tokenValue" )
+           ->assertStatus(200)
+           ->assertJson( $user->toArray() )
+           ;
+    }
+
+    public function testUserUpdate()
+    {
+      //get params
+      list($tokenValue, $user) = $this->getLoginTokenAndNewUser();
+
+      $user->name = "usernameUpdate";
+      $data = array_merge( $user->toArray(), [ 'password' => 'secret', ] );
+
+      // Actualizamos el usuario
+      $this->put('/api/user/'.$user->id."?token=$tokenValue", $data )
+           ->assertStatus(200)
+           ->assertExactJson(['updated' => true])
+           ;
+
+      //Compruebo en la BD que existe un usuario con el nombre modificado
+      $this->assertDatabaseHas('users', [
+        'name' => 'usernameUpdate'
+      ]);
+    }
+
+    public function testUserDestroy()
+    {
+      //get params
+      list($tokenValue, $user) = $this->getLoginTokenAndNewUser();
+
+      // Eliminamos al usuario
+      $this->delete('/api/user/'.$user->id."?token=$tokenValue")
+           ->assertStatus(200)
+           ->assertExactJson(['deleted' => true])
+           ;
+
+      //Compruebo en la BD que no existe el usuario
+      $this->assertDatabaseMissing('users', [
+        'id' => $user->id
+      ]);
+    }
+
     public function getData($custom = array())
     {
         $data = [
